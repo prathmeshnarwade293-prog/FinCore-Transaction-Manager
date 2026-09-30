@@ -1,0 +1,52 @@
+import { useMemo, useState } from 'react';
+import { ArrowDownRight, ArrowUpRight, ArrowUpRightFromSquare, CircleAlert, Eye, EyeOff, Plus, RefreshCw, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
+import { useGetDashboardSummary } from '@workspace/api-client-react';
+import type { DashboardSummary, Transaction } from '@workspace/api-client-react';
+import { money, moneyExact, shortDate } from '@/lib/format';
+import { EmptyState, PageHeading, SectionTitle, SkeletonBlock } from '@/components/app-shell';
+import { Link } from 'wouter';
+
+function StatCard({ label, value, detail, positive, icon: Icon, tone = 'default' }: { label: string; value: string; detail: string; positive?: boolean; icon: typeof Wallet; tone?: 'default' | 'dark' | 'gold' }) {
+  return <div className={`relative overflow-hidden rounded-2xl border p-5 ${tone === 'dark' ? 'border-primary bg-primary text-primary-foreground' : tone === 'gold' ? 'border-[#dbc178] bg-[#f5e7b9]' : 'border-card-border bg-card'}`}>
+    <div className="flex items-center justify-between"><span className={`text-xs font-semibold ${tone === 'dark' ? 'text-primary-foreground/65' : 'text-muted-foreground'}`}>{label}</span><span className={`grid h-8 w-8 place-items-center rounded-lg ${tone === 'dark' ? 'bg-primary-foreground/10' : 'bg-secondary'}`}><Icon size={16} /></span></div>
+    <p className="mt-5 font-display text-[27px] font-bold tracking-tight">{value}</p>
+    <div className={`mt-2 flex items-center gap-1 text-xs ${tone === 'dark' ? 'text-[#f4d67f]' : positive ? 'text-[#43896d]' : 'text-muted-foreground'}`}><span>{detail}</span>{positive !== undefined && (positive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />)}</div>
+    {tone === 'dark' && <div className="absolute -bottom-8 -right-4 h-28 w-28 rounded-full border-[14px] border-primary-foreground/10" />}
+  </div>;
+}
+
+function CashflowChart({ data }: { data: DashboardSummary['monthlyCashflow'] }) {
+  const max = Math.max(...data.flatMap((item) => [item.income, item.expenses]), 1);
+  return <div className="rounded-2xl border border-card-border bg-card p-5 sm:p-6"><SectionTitle title="Cash flow" detail="Income vs. expenses · last 6 months" action={<button className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground" data-testid="button-cashflow-period">6 months</button>} /><div className="mt-7 flex h-[190px] items-end gap-2 border-b border-border pb-7 sm:gap-5">{data.map((month) => <div className="group flex h-full flex-1 items-end justify-center gap-1.5" key={month.month} data-testid={`chart-cashflow-${month.month}`}><div className="w-2.5 rounded-t-sm bg-[#d5b454] transition-all group-hover:opacity-70 sm:w-3" style={{ height: `${Math.max(month.income / max * 100, 5)}%` }} /><div className="w-2.5 rounded-t-sm bg-[#8cb6a9] transition-all group-hover:opacity-70 sm:w-3" style={{ height: `${Math.max(month.expenses / max * 100, 5)}%` }} /><span className="absolute translate-y-6 text-[10px] text-muted-foreground">{month.month}</span></div>)}</div><div className="mt-5 flex gap-5 text-xs text-muted-foreground"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-[#d5b454]" />Income</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-[#8cb6a9]" />Expenses</span></div></div>;
+}
+
+function SpendingBreakdown({ data }: { data: DashboardSummary['spendingByCategory'] }) {
+  const total = data.reduce((sum, item) => sum + item.amount, 0) || 1;
+  return <div className="rounded-2xl border border-card-border bg-card p-5 sm:p-6"><SectionTitle title="Where your money goes" detail="This month" action={<Link href="/analytics" className="text-xs font-bold text-[#8e6b1e] hover:underline" data-testid="link-view-analytics">View analysis</Link>} /><div className="mt-6 space-y-4">{data.length ? data.slice(0, 5).map((item) => <div key={item.category} data-testid={`row-spending-${item.category}`}><div className="mb-1.5 flex items-center justify-between text-xs"><span className="font-semibold">{item.category}</span><span className="font-mono text-muted-foreground">{money(item.amount)}</span></div><div className="h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full" style={{ width: `${item.amount / total * 100}%`, backgroundColor: item.color }} /></div></div>) : <EmptyState title="No spending data yet" description="Once transactions arrive, category movement will appear here." />}</div></div>;
+}
+
+function TransactionRow({ transaction }: { transaction: Transaction }) {
+  return <div className="flex items-center gap-3 border-b border-border/70 py-3.5 last:border-0" data-testid={`row-recent-transaction-${transaction.id}`}><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-secondary text-xs font-bold text-primary">{transaction.merchant.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.merchant}</p><p className="mt-0.5 text-xs text-muted-foreground">{transaction.category} <span className="mx-1 text-border">·</span> {shortDate(transaction.date)}</p></div><p className={`font-mono text-sm font-semibold ${transaction.amount < 0 ? 'text-[#bb5a4d]' : 'text-[#43896d]'}`}>{transaction.amount < 0 ? '-' : '+'}{moneyExact(Math.abs(transaction.amount), transaction.currency)}</p></div>;
+}
+
+export function Dashboard() {
+  const { data, isLoading, isError, refetch } = useGetDashboardSummary();
+  const [hidden, setHidden] = useState(false);
+  if (isLoading) return <><PageHeading eyebrow="Overview" title="Your financial picture" description="A clear view of where things stand." /><div className="grid gap-4 md:grid-cols-4">{[1, 2, 3, 4].map((n) => <SkeletonBlock key={n} className="h-36" />)}</div><div className="mt-5 grid gap-5 lg:grid-cols-[1.45fr_1fr]"><SkeletonBlock className="h-[300px]" /><SkeletonBlock className="h-[300px]" /></div></>;
+  if (isError || !data) return <div className="rounded-2xl border border-[#e1b8ad] bg-[#fff1ec] p-8"><h2 className="font-display text-xl font-bold">Your overview is taking a moment</h2><p className="mt-2 text-sm text-muted-foreground">We couldn't reach your financial summary.</p><button onClick={() => refetch()} className="mt-5 flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground" data-testid="button-retry-dashboard"><RefreshCw size={15} />Try again</button></div>;
+  return <div className="animate-enter">
+    <PageHeading eyebrow="Tuesday, June 18" title="Your financial picture" description="The signal, without the noise." action={<button onClick={() => setHidden(!hidden)} className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold transition-colors hover:bg-secondary" data-testid="button-toggle-balances">{hidden ? <Eye size={16} /> : <EyeOff size={16} />}{hidden ? 'Show balances' : 'Hide balances'}</button>} />
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCard label="Net worth" value={hidden ? '••••••' : money(data.netWorth)} detail={`${data.netWorthChange >= 0 ? '+' : ''}${data.netWorthChange.toFixed(1)}% from last month`} positive={data.netWorthChange >= 0} icon={Wallet} tone="dark" />
+      <StatCard label="Income" value={hidden ? '••••••' : money(data.income)} detail="This month" icon={ArrowDownRight} />
+      <StatCard label="Expenses" value={hidden ? '••••••' : money(data.expenses)} detail="This month" positive={false} icon={ArrowUpRight} tone="gold" />
+      <StatCard label="Savings rate" value={`${data.savingsRate.toFixed(1)}%`} detail="Target: 25.0%" positive={data.savingsRate >= 25} icon={Sparkles} />
+    </div>
+    <div className="mt-5 grid gap-5 lg:grid-cols-[1.45fr_1fr]"><CashflowChart data={data.monthlyCashflow} /><SpendingBreakdown data={data.spendingByCategory} /></div>
+    <div className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
+      <div className="rounded-2xl border border-card-border bg-card p-5 sm:p-6"><SectionTitle title="Recent activity" detail="Your latest money movement" action={<Link href="/transactions" className="text-xs font-bold text-[#8e6b1e] hover:underline" data-testid="link-view-transactions">View ledger</Link>} />{data.recentTransactions.length ? <div className="mt-2">{data.recentTransactions.slice(0, 5).map((transaction) => <TransactionRow key={transaction.id} transaction={transaction} />)}</div> : <EmptyState title="Your ledger is quiet" description="Add a transaction or link an account to start seeing activity." action={<Link href="/transactions" className="rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground" data-testid="link-add-first-transaction">Add transaction</Link>} />}</div>
+      <div className="rounded-2xl border border-card-border bg-card p-5 sm:p-6"><SectionTitle title="Worth watching" detail={`${data.alerts.length} items need your attention`} /><div className="mt-5 space-y-3">{data.alerts.length ? data.alerts.slice(0, 3).map((alert) => <div key={alert.id} className={`flex gap-3 rounded-xl border p-3.5 ${alert.severity === 'critical' ? 'border-[#e6b7ae] bg-[#fff3ef]' : alert.severity === 'warning' ? 'border-[#e7d5a4] bg-[#fff9e9]' : 'border-[#c6dbd3] bg-[#f0f8f4]'}`} data-testid={`alert-${alert.id}`}><CircleAlert size={17} className="mt-0.5 shrink-0 text-[#9a7220]" /><div><p className="text-sm font-bold">{alert.title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{alert.description}</p></div></div>) : <EmptyState title="Nothing urgent" description="We'll surface anything that deserves a closer look here." />}</div></div>
+    </div>
+    <div className="mt-5 rounded-2xl bg-[#dceae4] p-5 sm:p-6"><div className="flex items-start gap-4"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#b6d2c5] text-[#2e6657]"><ShieldCheck size={19} /></div><div><p className="text-sm font-bold text-[#2e5149]">Your financial data is protected</p><p className="mt-1 max-w-2xl text-xs leading-5 text-[#54756a]">FinCore uses encrypted connections and keeps an immutable history of changes. Your data stays yours, always.</p></div><Link href="/settings" className="ml-auto hidden text-xs font-bold text-[#2e6657] hover:underline sm:block" data-testid="link-security-settings">Security settings</Link></div></div>
+  </div>;
+}

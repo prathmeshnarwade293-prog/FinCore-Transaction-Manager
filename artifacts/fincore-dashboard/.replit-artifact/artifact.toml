@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "FinCore"
+description = "A secure financial intelligence workspace for tracking bank accounts, transactions, budgets, and spending insights."
+version = "1.0.0"
+id = "artifacts/fincore-dashboard"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23816
+
+[services.development]
+run = "pnpm --filter @workspace/fincore-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fincore-dashboard", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/fincore-dashboard/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23816"
+BASE_PATH = "/"

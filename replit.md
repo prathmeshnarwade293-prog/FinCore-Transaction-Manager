@@ -1,6 +1,6 @@
-# [Project name]
+# FinCore
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+FinCore is a financial intelligence workspace for tracking accounts, ledger activity, budgets, and spending patterns in one focused view.
 
 ## Run & Operate
 
@@ -22,15 +22,22 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/fincore-dashboard/` — React/Vite web app and product UI
+- `artifacts/api-server/src/routes/fincore.ts` — FinCore API routes
+- `artifacts/api-server/src/lib/fincore-store.ts` — seeded MVP account, transaction, budget, and audit data
+- `lib/api-spec/openapi.yaml` — source of truth for typed API contracts
+- `artifacts/fincore-dashboard/src/index.css` — FinCore theme tokens and app-wide visual language
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The first build is a focused demo workspace with an in-memory store so the complete product loop is usable without requiring authentication or external bank connections.
+- The API contract is OpenAPI-first; generated React Query hooks are the only frontend data access layer.
+- Financial instruments are represented with masked account identifiers only; no raw account or card numbers are accepted.
+- The app uses a shared API service at `/api` and a root-routed web artifact so the preview and future publish URL share the same paths.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The MVP includes a dashboard with net worth and cash-flow views, linked account management, searchable and filterable transactions, transaction creation and editing, budget tracking, spending analytics, audit history, settings, and a contextual advisor chat.
 
 ## User preferences
 
@@ -38,7 +45,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Run `pnpm --filter @workspace/api-spec run codegen` after changing `lib/api-spec/openapi.yaml`.
+- The demo store resets when the API process restarts; connect the database and authentication layers before treating it as production persistence.
 
 ## Pointers
 

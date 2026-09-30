@@ -3,13 +3,25 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: FinCore financial intelligence MVP API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Financial overview
+  - name: accounts
+    description: Linked financial accounts
+  - name: transactions
+    description: Transaction ledger
+  - name: budgets
+    description: Budget planning
+  - name: analytics
+    description: Spending analytics
+  - name: advisor
+    description: Context-aware financial guidance
 paths:
   /healthz:
     get:
@@ -24,6 +36,203 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /accounts:
+    get:
+      operationId: listAccounts
+      tags: [accounts]
+      summary: List linked accounts
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+    post:
+      operationId: createAccount
+      tags: [accounts]
+      summary: Create a linked account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountInput"
+      responses:
+        "201":
+          description: Created account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: Search and filter the transaction ledger
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: accountId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [COMPLETED, PENDING, FLAGGED]
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Add a transaction to the ledger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /transactions/{id}:
+    patch:
+      operationId: updateTransaction
+      tags: [transactions]
+      summary: Update a ledger transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionUpdate"
+      responses:
+        "200":
+          description: Updated transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /budgets:
+    get:
+      operationId: listBudgets
+      tags: [budgets]
+      summary: List budget categories
+      responses:
+        "200":
+          description: Budgets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Budget"
+    post:
+      operationId: createBudget
+      tags: [budgets]
+      summary: Create a budget category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BudgetInput"
+      responses:
+        "201":
+          description: Created budget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Budget"
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Get spending analytics
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+  /audit-logs/{transactionId}:
+    get:
+      operationId: getAuditLogs
+      tags: [transactions]
+      summary: Get the immutable audit history for a transaction
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+  /advisor/message:
+    post:
+      operationId: sendAdvisorMessage
+      tags: [advisor]
+      summary: Get a contextual demo financial advisor response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdvisorMessageInput"
+      responses:
+        "200":
+          description: Advisor response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdvisorMessage"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +242,196 @@ components:
           type: string
       required:
         - status
+    Account:
+      type: object
+      required: [id, institution, name, type, maskedNumber, currency, balance, trend, color]
+      properties:
+        id: { type: string }
+        institution: { type: string }
+        name: { type: string }
+        type: { type: string }
+        maskedNumber: { type: string }
+        currency: { type: string }
+        balance: { type: number }
+        trend: { type: number }
+        color: { type: string }
+    AccountInput:
+      type: object
+      required: [institution, name, type, maskedNumber, currency, balance]
+      properties:
+        institution: { type: string, minLength: 2 }
+        name: { type: string, minLength: 2 }
+        type: { type: string, enum: [CHECKING, SAVINGS, CREDIT_CARD, INVESTMENT, LOAN] }
+        maskedNumber: { type: string, pattern: '^\*{4}\d{4}$' }
+        currency: { type: string, enum: [USD, EUR, GBP, INR, JPY, CAD] }
+        balance: { type: number }
+    Transaction:
+      type: object
+      required: [id, accountId, accountName, merchant, category, date, amount, currency, status, paymentMethod, recurring, flagged]
+      properties:
+        id: { type: string }
+        accountId: { type: string }
+        accountName: { type: string }
+        merchant: { type: string }
+        category: { type: string }
+        date: { type: string }
+        amount: { type: number }
+        currency: { type: string }
+        status: { type: string, enum: [COMPLETED, PENDING, FLAGGED] }
+        paymentMethod: { type: string }
+        recurring: { type: boolean }
+        flagged: { type: boolean }
+        note: { type: ["string", "null"] }
+    TransactionInput:
+      type: object
+      required: [accountId, merchant, category, date, amount, paymentMethod]
+      properties:
+        accountId: { type: string }
+        merchant: { type: string, minLength: 1 }
+        category: { type: string, minLength: 1 }
+        date: { type: string }
+        amount: { type: number }
+        paymentMethod: { type: string }
+        note: { type: string }
+    TransactionUpdate:
+      type: object
+      properties:
+        category: { type: string }
+        note: { type: string }
+        status: { type: string, enum: [COMPLETED, PENDING, FLAGGED] }
+    Budget:
+      type: object
+      required: [id, category, limit, spent, color]
+      properties:
+        id: { type: string }
+        category: { type: string }
+        limit: { type: number }
+        spent: { type: number }
+        color: { type: string }
+    BudgetInput:
+      type: object
+      required: [category, limit, color]
+      properties:
+        category: { type: string }
+        limit: { type: number }
+        color: { type: string }
+    DashboardSummary:
+      type: object
+      required: [netWorth, netWorthChange, income, expenses, savingsRate, spendingByCategory, monthlyCashflow, alerts, recentTransactions]
+      properties:
+        netWorth: { type: number }
+        netWorthChange: { type: number }
+        income: { type: number }
+        expenses: { type: number }
+        savingsRate: { type: number }
+        spendingByCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySpend"
+        monthlyCashflow:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthCashflow"
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        recentTransactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+    CategorySpend:
+      type: object
+      required: [category, amount, color]
+      properties:
+        category: { type: string }
+        amount: { type: number }
+        color: { type: string }
+    MonthCashflow:
+      type: object
+      required: [month, income, expenses]
+      properties:
+        month: { type: string }
+        income: { type: number }
+        expenses: { type: number }
+    Alert:
+      type: object
+      required: [id, title, description, severity]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        severity: { type: string, enum: [info, warning, critical] }
+    AnalyticsSummary:
+      type: object
+      required: [topMerchants, recurringPayments, anomalies, categoryGrowth]
+      properties:
+        topMerchants:
+          type: array
+          items:
+            $ref: "#/components/schemas/MerchantSpend"
+        recurringPayments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecurringPayment"
+        anomalies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Anomaly"
+        categoryGrowth:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryGrowth"
+    MerchantSpend:
+      type: object
+      required: [merchant, amount, transactions]
+      properties:
+        merchant: { type: string }
+        amount: { type: number }
+        transactions: { type: integer }
+    RecurringPayment:
+      type: object
+      required: [merchant, amount, cadence, nextDate]
+      properties:
+        merchant: { type: string }
+        amount: { type: number }
+        cadence: { type: string }
+        nextDate: { type: string }
+    Anomaly:
+      type: object
+      required: [id, merchant, amount, reason, severity]
+      properties:
+        id: { type: string }
+        merchant: { type: string }
+        amount: { type: number }
+        reason: { type: string }
+        severity: { type: string, enum: [low, medium, high] }
+    CategoryGrowth:
+      type: object
+      required: [category, current, previous, change]
+      properties:
+        category: { type: string }
+        current: { type: number }
+        previous: { type: number }
+        change: { type: number }
+    AuditLog:
+      type: object
+      required: [id, action, timestamp, actor, summary]
+      properties:
+        id: { type: string }
+        action: { type: string }
+        timestamp: { type: string }
+        actor: { type: string }
+        summary: { type: string }
+    AdvisorMessageInput:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, minLength: 1 }
+    AdvisorMessage:
+      type: object
+      required: [message, source]
+      properties:
+        message: { type: string }
+        source: { type: string }
 
